@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: cicd-pv
+  labels:
+    app: cicd
+    purpose: jenkins-home
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  # Use a distinct storage class name so this PV is only bound when explicitly requested.
+  storageClassName: manual
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    # Minikube hostPath directory for CI/CD (Jenkins) data.
+    path: /mnt/data/cicd
+
+

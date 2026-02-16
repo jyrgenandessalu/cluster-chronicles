@@ -1,0 +1,24 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: jenkins-deployer
+  labels:
+    app: jenkins
+    tier: cicd
+rules:
+  # Allow Jenkins to manage typical app resources in the current namespace.
+  - apiGroups: ["", "apps"]
+    resources:
+      - pods
+      - pods/log
+      - services
+      - deployments
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  # Allow reading ConfigMaps and Secrets needed for deployments.
+  - apiGroups: [""]
+    resources:
+      - configmaps
+      - secrets
+    verbs: ["get", "list", "watch"]
+
+

@@ -1,0 +1,94 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elasticsearch-exporter
+  labels:
+    app: elasticsearch-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: elasticsearch-exporter
+  template:
+    metadata:
+      labels:
+        app: elasticsearch-exporter
+    spec:
+      containers:
+        - name: elasticsearch-exporter
+          image: python:3.9-slim
+          ports:
+            - name: metrics
+              containerPort: 9114
+          env:
+            - name: ELASTICSEARCH_URL
+              value: "http://elasticsearch:9200"
+          command: ["python", "-c"]
+          args:
+            - |
+              import http.server
+              import socketserver
+              import urllib.request
+              import json
+              import time
+              import os
+              
+              PORT = 9114
+              ES_URL = os.environ.get('ELASTICSEARCH_URL', 'http://elasticsearch:9200')
+              
+              def get_cluster_health():
+                  try:
+                      with urllib.request.urlopen(f"{ES_URL}/_cluster/health", timeout=5) as response:
+                          data = json.loads(response.read().decode())
+                          return data.get('status', 'unknown')
+                  except Exception as e:
+                      print(f"Error querying Elasticsearch: {e}")
+                      return 'red'
+              
+              def status_to_value(status):
+                  status_map = {'green': 0, 'yellow': 1, 'red': 2}
+                  return status_map.get(status.lower(), 2)
+              
+              class MetricsHandler(http.server.BaseHTTPRequestHandler):
+                  def do_GET(self):
+                      if self.path == '/metrics':
+                          status = get_cluster_health()
+                          status_value = status_to_value(status)
+                          
+                          # Expose metric in Prometheus format
+                          metrics = f"""# HELP elasticsearch_cluster_health_status Elasticsearch cluster health status (0=green, 1=yellow, 2=red)
+              # TYPE elasticsearch_cluster_health_status gauge
+              elasticsearch_cluster_health_status{{color="{status}"}} {status_value}
+              """
+                          
+                          self.send_response(200)
+                          self.send_header('Content-type', 'text/plain')
+                          self.end_headers()
+                          self.wfile.write(metrics.encode())
+                      elif self.path == '/health':
+                          self.send_response(200)
+                          self.end_headers()
+                      else:
+                          self.send_response(404)
+                          self.end_headers()
+                  
+                  def log_message(self, format, *args):
+                      pass  # Suppress access logs
+              
+              with socketserver.TCPServer(("", PORT), MetricsHandler) as httpd:
+                  print(f"Elasticsearch exporter listening on port {PORT}")
+                  httpd.serve_forever()
+          resources:
+            requests:
+              cpu: "10m"
+              memory: "64Mi"
+            limits:
+              cpu: "100m"
+              memory: "128Mi"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 9114
+            initialDelaySeconds: 5
+            periodSeconds: 10
+

@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  labels:
+    app: backend
+    tier: backend
+spec:
+  # Single replica as required
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+        tier: backend
+    spec:
+      containers:
+        - name: backend
+          # NOTE: Build this image locally for Minikube:
+          #   eval $(minikube -p minikube docker-env)
+          #   docker build -t backend:latest ./backend
+          image: backend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 5000
+          env:
+            # ROLE is used by the Flask app for logging/metrics labels
+            - name: ROLE
+              valueFrom:
+                configMapKeyRef:
+                  name: backend-config
+                  key: ROLE
+            # HOST_VM is kept for compatibility with existing logging/metrics,
+            # but in Kubernetes this will typically be the pod name.
+            - name: HOST_VM
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          resources:
+            # Conservative defaults for Minikube; tune as needed.
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /
+              port: http
+            # Allow up to ~5 minutes for very slow starts in constrained environments
+            failureThreshold: 30
+            periodSeconds: 10
+          volumeMounts:
+            # Optional: isolate application log directory; logs are also sent to stdout.
+            - name: flask-logs
+              mountPath: /var/log/flask_apps
+      volumes:
+        - name: flask-logs
+          emptyDir: {}
+
+

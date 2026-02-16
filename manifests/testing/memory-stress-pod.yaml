@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: memory-stress
+spec:
+  containers:
+    - name: memory-stress
+      image: python:3.9-slim
+      command: ["python", "-c"]
+      args:
+        - |
+          import time
+          # Allocate ~1900MB (95% of 2Gi limit) to trigger alert
+          memory_chunk = bytearray(1900 * 1024 * 1024)  # 1900MB
+          # Keep memory allocated and sleep
+          print(f"Allocated {len(memory_chunk) / (1024*1024):.0f}MB of memory")
+          # Run indefinitely to keep memory allocated for alert testing
+          while True:
+              time.sleep(3600)  # Sleep in 1-hour chunks to keep process alive
+      resources:
+        requests:
+          memory: "1Gi"
+        limits:
+          memory: "2Gi"  # Set limit so alert can calculate percentage (>90% = 1800M+)
+  restartPolicy: Never
+

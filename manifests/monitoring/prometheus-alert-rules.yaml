@@ -1,0 +1,155 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-alert-rules
+  labels:
+    app: prometheus
+    component: server
+data:
+  alerts.yml: |
+    groups:
+      - name: cluster_alerts
+        interval: 30s
+        rules:
+          # Alert 1: High CPU Usage (Node-level)
+          - alert: HighCPUUsage
+            expr: 100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High CPU usage detected on node"
+              description: "Node CPU usage is above 80% for more than 5 minutes on {{ $labels.instance }}"
+
+          # Alert 2: High Memory Usage (Node-level, 90% threshold)
+          - alert: HighMemoryUsage
+            expr: (container_memory_working_set_bytes{container_label_io_kubernetes_container_name!="POD",container_label_io_kubernetes_container_name!="",container_label_io_kubernetes_pod_namespace!~"^(kube-system|ingress-nginx|kube-public|kube-node-lease)$"} / container_spec_memory_limit_bytes{container_label_io_kubernetes_container_name!="POD",container_label_io_kubernetes_container_name!="",container_label_io_kubernetes_pod_namespace!~"^(kube-system|ingress-nginx|kube-public|kube-node-lease)$"}) * 100 > 90
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High memory usage detected"
+              description: "Memory usage is above 90% for container {{ $labels.container_label_io_kubernetes_container_name }} in pod {{ $labels.container_label_io_kubernetes_pod_name }}"
+
+          # Alert 2b: Container Memory Usage (80% threshold) - Requirement 41
+          - alert: ContainerMemoryUsage
+            expr: (container_memory_working_set_bytes{container_label_io_kubernetes_container_name!="POD",container_label_io_kubernetes_container_name!="",container_label_io_kubernetes_pod_namespace!~"^(kube-system|ingress-nginx|kube-public|kube-node-lease)$"} / container_spec_memory_limit_bytes{container_label_io_kubernetes_container_name!="POD",container_label_io_kubernetes_container_name!="",container_label_io_kubernetes_pod_namespace!~"^(kube-system|ingress-nginx|kube-public|kube-node-lease)$"}) * 100 > 80
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Container memory usage exceeding 80% of limit"
+              description: "Container {{ $labels.container_label_io_kubernetes_container_name }} in pod {{ $labels.container_label_io_kubernetes_pod_name }} is using more than 80% of its memory limit"
+
+          # Alert 3: Container Restarting
+          - alert: ContainerRestarting
+            expr: increase(kube_pod_container_status_restarts_total[15m]) > 3
+            for: 5m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Container is restarting frequently"
+              description: "Container {{ $labels.container }} in pod {{ $labels.pod }} in namespace {{ $labels.namespace }} has restarted more than 3 times in the last 15 minutes"
+
+          # Alert 4: Pod Not Receiving Traffic
+          - alert: PodNotReceivingTraffic
+            expr: rate(http_requests_total{job="flask-apps"}[5m]) == 0
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Pod is not receiving traffic"
+              description: "Pod {{ $labels.instance }} has not received any requests for more than 10 minutes"
+
+          # Alert 5: Node Down
+          - alert: NodeDown
+            expr: up{job="node-exporter"} == 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Node is down"
+              description: "Node {{ $labels.instance }} has been down for more than 1 minute"
+
+          # Alert 6: High Disk Usage
+          - alert: HighDiskUsage
+            expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 < 15
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High disk usage detected"
+              description: "Disk usage is above 85% on {{ $labels.instance }}"
+
+          # Alert 7: Application Down
+          - alert: ApplicationDown
+            expr: up{job=~"flask-apps|backend|frontend"} == 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Application is down"
+              description: "Application {{ $labels.instance }} has been down for more than 1 minute"
+
+          # Alert 8: High Request Rate
+          - alert: HighRequestRate
+            expr: rate(http_requests_total{job="flask-apps"}[5m]) > 100
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High request rate detected"
+              description: "Request rate is above 100 req/s for {{ $labels.instance }}"
+
+          # Alert 9: Prometheus Target Down
+          - alert: PrometheusTargetDown
+            expr: up == 0
+            for: 1m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Prometheus target is down"
+              description: "Prometheus target {{ $labels.job }} / {{ $labels.instance }} has been down for more than 1 minute"
+
+          # Alert 10: Elasticsearch Cluster Status Yellow or Red
+          - alert: ElasticsearchClusterStatus
+            expr: elasticsearch_cluster_health_status{color="yellow"} == 1 or elasticsearch_cluster_health_status{color="red"} == 1
+            for: 1m
+            labels:
+              severity: warning
+              component: logging
+            annotations:
+              summary: "Elasticsearch cluster status is {{ $labels.color }}"
+              description: "Elasticsearch cluster {{ $labels.cluster }} status is {{ $labels.color }}. Check cluster health at http://elasticsearch:9200/_cluster/health"
+
+          # Alert 11: Fluentd Log Collection Errors
+          - alert: FluentdLogCollectionErrors
+            expr: fluentd_output_status_num_errors > 0 or fluentd_output_status_retry_count > 10
+            for: 5m
+            labels:
+              severity: warning
+              component: logging
+            annotations:
+              summary: "Fluentd log collection errors detected"
+              description: "Fluentd pod {{ $labels.pod }} in namespace {{ $labels.namespace }} is experiencing log collection errors or retries"
+
+          # Alert 12: Pod Pending
+          - alert: PodPending
+            expr: kube_pod_status_phase{phase="Pending"} == 1
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Pod is stuck in Pending state"
+              description: "Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} has been in Pending state for more than 5 minutes"
+
+          # Alert 13: Kubernetes API Server Unreachable
+          - alert: APIServerDown
+            expr: up{job="kubernetes-apiservers"} == 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Kubernetes API server is unreachable"
+              description: "Kubernetes API server {{ $labels.instance }} has been unreachable for more than 1 minute"
+

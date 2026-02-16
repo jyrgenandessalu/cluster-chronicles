@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  labels:
+    app: frontend
+    tier: frontend
+spec:
+  # Two replicas as required
+  replicas: 2
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+        tier: frontend
+    spec:
+      containers:
+        - name: frontend
+          # NOTE: Build this image locally for Minikube:
+          #   eval $(minikube -p minikube docker-env)
+          #   docker build -t frontend:latest ./frontend
+          image: frontend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 5000
+          env:
+            - name: ROLE
+              valueFrom:
+                configMapKeyRef:
+                  name: frontend-config
+                  key: ROLE
+            - name: HOST_VM
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            # Optional: backend URL for future integration; not used by the current code,
+            # but provided to satisfy internal communication requirements and to keep
+            # configuration in one place.
+            - name: BACKEND_URL
+              value: "http://backend:5000"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /
+              port: http
+            failureThreshold: 30
+            periodSeconds: 10
+          volumeMounts:
+            - name: flask-logs
+              mountPath: /var/log/flask_apps
+      volumes:
+        - name: flask-logs
+          emptyDir: {}
+
+

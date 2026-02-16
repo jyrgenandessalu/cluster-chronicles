@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  labels:
+    app: prometheus
+    component: server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+      component: server
+  template:
+    metadata:
+      labels:
+        app: prometheus
+        component: server
+    spec:
+      serviceAccountName: prometheus-sa
+      # Ensure Prometheus can write to the mounted PV even when backed by hostPath.
+      # An initContainer (running as root) fixes ownership, then Prometheus runs
+      # with the default user (uid/gid 65534 – "nobody") and fsGroup is set so
+      # group permissions are applied on the volume.
+      securityContext:
+        fsGroup: 65534
+      initContainers:
+        - name: fix-prometheus-permissions
+          image: busybox:1.37
+          command: ["sh", "-c", "chown -R 65534:65534 /prometheus"]
+          volumeMounts:
+            - name: data
+              mountPath: /prometheus
+          securityContext:
+            runAsUser: 0
+      containers:
+        - name: prometheus
+          image: prom/prometheus:v2.55.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - "--config.file=/etc/prometheus/prometheus.yml"
+            - "--storage.tsdb.path=/prometheus"
+            - "--web.enable-lifecycle"
+          ports:
+            - name: http
+              containerPort: 9090
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "2Gi"
+          volumeMounts:
+            - name: config
+              mountPath: /etc/prometheus
+            - name: alert-rules
+              mountPath: /etc/prometheus/alerts
+            - name: data
+              mountPath: /prometheus
+      volumes:
+        - name: config
+          configMap:
+            name: prometheus-config
+        - name: alert-rules
+          configMap:
+            name: prometheus-alert-rules
+        - name: data
+          persistentVolumeClaim:
+            claimName: monitoring-pvc
+
+

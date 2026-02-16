@@ -1,0 +1,108 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  labels:
+    app: grafana
+    component: dashboards
+data:
+  # Minimal example dashboards; in a real project you would expand/import
+  # more detailed community dashboards.
+  cluster-performance.json: |
+    {
+      "id": null,
+      "uid": "cluster-performance",
+      "title": "Cluster Performance",
+      "timezone": "browser",
+      "schemaVersion": 36,
+      "version": 1,
+      "refresh": "10s",
+      "panels": [
+        {
+          "type": "graph",
+          "title": "Node CPU Usage",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "100 - (avg by(instance)(irate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+              "legendFormat": "{{instance}}",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "type": "graph",
+          "title": "Node Memory Usage",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "100 * (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes))",
+              "legendFormat": "{{instance}}",
+              "refId": "B"
+            }
+          ]
+        }
+      ]
+    }
+  pod-container.json: |
+    {
+      "id": null,
+      "uid": "pod-container",
+      "title": "Pod & Container Metrics",
+      "timezone": "browser",
+      "schemaVersion": 36,
+      "version": 1,
+      "refresh": "10s",
+      "panels": [
+        {
+          "type": "graph",
+          "title": "Pod CPU (cAdvisor)",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "sum(rate(container_cpu_usage_seconds_total{image!=\"\"}[5m])) by (pod)",
+              "legendFormat": "{{pod}}",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "type": "graph",
+          "title": "Pod Memory (cAdvisor)",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "sum(container_memory_usage_bytes{image!=\"\"}) by (pod)",
+              "legendFormat": "{{pod}}",
+              "refId": "B"
+            }
+          ]
+        }
+      ]
+    }
+  application-performance.json: |
+    {
+      "id": null,
+      "uid": "application-performance",
+      "title": "Application Performance",
+      "timezone": "browser",
+      "schemaVersion": 36,
+      "version": 1,
+      "refresh": "10s",
+      "panels": [
+        {
+          "type": "graph",
+          "title": "HTTP Requests - Backend & Frontend",
+          "datasource": "Prometheus",
+          "targets": [
+            {
+              "expr": "sum(rate(flask_http_requests_total[5m])) by (endpoint, method, status)",
+              "legendFormat": "{{method}} {{endpoint}} {{status}}",
+              "refId": "A"
+            }
+          ]
+        }
+      ]
+    }
+
+

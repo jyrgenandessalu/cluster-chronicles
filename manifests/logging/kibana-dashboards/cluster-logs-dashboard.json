@@ -1,0 +1,50 @@
+{
+  "version": "8.15.0",
+  "objects": [
+    {
+      "id": "cluster-logs-dashboard",
+      "type": "dashboard",
+      "updated_at": "2025-12-19T00:00:00.000Z",
+      "version": "WzEsMV0=",
+      "attributes": {
+        "title": "Cluster Logs Dashboard",
+        "description": "Overview of all cluster logs by namespace, pod, and log level",
+        "panelsJSON": "[{\"version\":\"8.15.0\",\"gridData\":{\"x\":0,\"y\":0,\"w\":24,\"h\":15,\"i\":\"1\"},\"panelIndex\":\"1\",\"embeddableConfig\":{\"title\":\"Log Volume Over Time\"},\"panelRefName\":\"panel_1\"},{\"version\":\"8.15.0\",\"gridData\":{\"x\":24,\"y\":0,\"w\":24,\"h\":15,\"i\":\"2\"},\"panelIndex\":\"2\",\"embeddableConfig\":{\"title\":\"Logs by Namespace\"},\"panelRefName\":\"panel_2\"},{\"version\":\"8.15.0\",\"gridData\":{\"x\":0,\"y\":15,\"w\":24,\"h\":15,\"i\":\"3\"},\"panelIndex\":\"3\",\"embeddableConfig\":{\"title\":\"Logs by Pod\"},\"panelRefName\":\"panel_3\"},{\"version\":\"8.15.0\",\"gridData\":{\"x\":24,\"y\":15,\"w\":24,\"h\":15,\"i\":\"4\"},\"panelIndex\":\"4\",\"embeddableConfig\":{\"title\":\"Error Log Count\"},\"panelRefName\":\"panel_4\"},{\"version\":\"8.15.0\",\"gridData\":{\"x\":0,\"y\":30,\"w\":48,\"h\":20,\"i\":\"5\"},\"panelIndex\":\"5\",\"embeddableConfig\":{\"title\":\"Log Level Distribution\"},\"panelRefName\":\"panel_5\"}]",
+        "optionsJSON": "{\"darkTheme\":false,\"useMargins\":true,\"syncColors\":false,\"hidePanelTitles\":false}",
+        "version": 1,
+        "timeRestore": false,
+        "kibanaSavedObjectMeta": {
+          "searchSourceJSON": "{\"query\":{\"query\":\"\",\"language\":\"kuery\"},\"filter\":[]}"
+        }
+      },
+      "references": [
+        {
+          "name": "panel_1",
+          "type": "visualization",
+          "id": "log-volume-time"
+        },
+        {
+          "name": "panel_2",
+          "type": "visualization",
+          "id": "logs-by-namespace"
+        },
+        {
+          "name": "panel_3",
+          "type": "visualization",
+          "id": "logs-by-pod"
+        },
+        {
+          "name": "panel_4",
+          "type": "visualization",
+          "id": "error-log-count"
+        },
+        {
+          "name": "panel_5",
+          "type": "visualization",
+          "id": "log-level-distribution"
+        }
+      ]
+    }
+  ]
+}
+

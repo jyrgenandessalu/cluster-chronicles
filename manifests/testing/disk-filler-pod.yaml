@@ -1,0 +1,19 @@
+﻿apiVersion: v1
+kind: Pod
+metadata:
+  name: disk-filler
+spec:
+  containers:
+  - name: filler
+    image: busybox
+    command: ["sh", "-c", "dd if=/dev/zero of=/host/var/large_file.img bs=1M count=3072 && sleep 3600"]
+    volumeMounts:
+    - name: host-root
+      mountPath: /host
+      readOnly: false
+  volumes:
+  - name: host-root
+    hostPath:
+      path: /
+      type: Directory
+  restartPolicy: Never

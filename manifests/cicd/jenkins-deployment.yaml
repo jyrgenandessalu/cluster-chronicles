@@ -1,0 +1,105 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jenkins
+  labels:
+    app: jenkins
+    tier: cicd
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jenkins
+  template:
+    metadata:
+      labels:
+        app: jenkins
+        tier: cicd
+    spec:
+      serviceAccountName: jenkins-sa
+      # Ensure Jenkins can write to the mounted PV even when backed by hostPath.
+      # An initContainer (running as root) fixes ownership, then the main
+      # Jenkins container runs as an unprivileged user (uid/gid 1000).
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: jenkins
+          # Official Jenkins LTS image
+          image: jenkins/jenkins:lts-jdk17
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: agent
+              containerPort: 50000
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "2Gi"
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+          env:
+            # Simplify first-run experience in a local dev cluster.
+            - name: JAVA_OPTS
+              value: "-Djenkins.install.runSetupWizard=false"
+          volumeMounts:
+            - name: jenkins-home
+              mountPath: /var/jenkins_home
+            - name: docker-sock
+              mountPath: /var/run/docker.sock
+            - name: kubectl
+              mountPath: /usr/local/bin/kubectl
+              subPath: kubectl
+            - name: trivy
+              mountPath: /usr/local/bin/trivy
+              subPath: trivy
+            - name: docker-cli
+              mountPath: /usr/local/bin/docker
+              subPath: docker
+      initContainers:
+        - name: fix-jenkins-home-permissions
+          image: busybox:1.37
+          command: ["sh", "-c", "chown -R 1000:1000 /var/jenkins_home"]
+          volumeMounts:
+            - name: jenkins-home
+              mountPath: /var/jenkins_home
+          securityContext:
+            runAsUser: 0
+        - name: install-kubectl
+          image: bitnami/kubectl:latest
+          command: ["sh", "-c", "cp /opt/bitnami/kubectl/bin/kubectl /tools/kubectl && chmod +x /tools/kubectl"]
+          volumeMounts:
+            - name: kubectl
+              mountPath: /tools
+        - name: install-trivy
+          image: aquasec/trivy:latest
+          command: ["sh", "-c", "cp /usr/local/bin/trivy /tools/trivy && chmod +x /tools/trivy"]
+          volumeMounts:
+            - name: trivy
+              mountPath: /tools
+        - name: install-docker-cli
+          image: docker:latest
+          command: ["sh", "-c", "cp /usr/local/bin/docker /tools/docker && chmod +x /tools/docker"]
+          volumeMounts:
+            - name: docker-cli
+              mountPath: /tools
+      volumes:
+        - name: jenkins-home
+          persistentVolumeClaim:
+            claimName: cicd-pvc
+        - name: docker-sock
+          hostPath:
+            path: /var/run/docker.sock
+            type: Socket
+        - name: kubectl
+          emptyDir: {}
+        - name: trivy
+          emptyDir: {}
+        - name: docker-cli
+          emptyDir: {}
+
+

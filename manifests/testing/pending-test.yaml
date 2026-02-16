@@ -1,0 +1,14 @@
+﻿apiVersion: v1
+kind: Pod
+metadata:
+  name: pending-test
+spec:
+  containers:
+  - name: test
+    image: alpine
+    command: ["sleep", "3600"]
+    resources:
+      requests:
+        cpu: "100"
+        memory: "1000Gi"
+  restartPolicy: Never

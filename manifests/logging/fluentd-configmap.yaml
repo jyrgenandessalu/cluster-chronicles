@@ -1,0 +1,91 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluentd-config
+  labels:
+    app: fluentd
+data:
+  fluent.conf: |
+    # Prometheus metrics endpoint
+    <source>
+      @type prometheus
+      @id in_prometheus
+      bind 0.0.0.0
+      port 24231
+      metrics_path /metrics
+    </source>
+
+    <source>
+      @type prometheus_monitor
+      @id in_prometheus_monitor
+    </source>
+
+    <source>
+      @type prometheus_output_monitor
+      @id in_prometheus_output_monitor
+    </source>
+
+    <source>
+      @type tail
+      @id in_tail_container_logs
+      path /var/lib/docker/containers/*/*.log
+      pos_file /tmp/fluentd-containers.log.pos
+      tag kubernetes.*
+      read_from_head true
+      <parse>
+        @type json
+        time_key time
+        time_format %Y-%m-%dT%H:%M:%S.%NZ
+        keep_time_key true
+      </parse>
+    </source>
+
+    <source>
+      @type tail
+      @id in_tail_kube_system_logs
+      path /var/log/pods/**/*.log
+      pos_file /tmp/fluentd-kube.log.pos
+      tag kubernetes.*
+      read_from_head true
+      <parse>
+        @type json
+        time_key time
+        time_format %Y-%m-%dT%H:%M:%S.%NZ
+        keep_time_key true
+      </parse>
+    </source>
+
+    <filter kubernetes.**>
+      @type kubernetes_metadata
+    </filter>
+
+    <match kubernetes.**>
+      @type elasticsearch
+      @id out_es
+      host "#{ENV['FLUENT_ELASTICSEARCH_HOST']}"
+      port "#{ENV['FLUENT_ELASTICSEARCH_PORT']}"
+      scheme "#{ENV['FLUENT_ELASTICSEARCH_SCHEME']}"
+      ssl_verify "#{ENV['FLUENT_ELASTICSEARCH_SSL_VERIFY']}"
+      ssl_version "#{ENV['FLUENT_ELASTICSEARCH_SSL_VERSION']}"
+      user "#{ENV['FLUENT_ELASTICSEARCH_USER']}"
+      password "#{ENV['FLUENT_ELASTICSEARCH_PASSWORD']}"
+      logstash_format true
+      logstash_prefix kubernetes-logs
+      logstash_dateformat %Y.%m.%d
+      include_tag_key true
+      type_name _doc
+      <buffer>
+        @type file
+        path /tmp/fluentd-buffers/kubernetes.system.buffer
+        flush_mode interval
+        retry_type exponential_backoff
+        flush_thread_count 2
+        flush_interval 5s
+        retry_forever false
+        retry_max_interval 30
+        chunk_limit_size 2M
+        queue_limit_length 8
+        overflow_action block
+      </buffer>
+    </match>
+

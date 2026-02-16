@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cicd-pvc
+  labels:
+    app: cicd
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: manual
+  resources:
+    requests:
+      storage: 10Gi
+  # Bind explicitly to the CI/CD PV.
+  volumeName: cicd-pv
+
+

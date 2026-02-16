@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: cicd-pvc-test
+  labels:
+    app: cicd
+    component: pvc-test
+spec:
+  containers:
+    - name: tester
+      image: python:3.11-slim
+      command: ["sleep", "3600"]
+      volumeMounts:
+        - name: cicd-data
+          mountPath: /data
+  volumes:
+    - name: cicd-data
+      persistentVolumeClaim:
+        claimName: cicd-pvc
+
+

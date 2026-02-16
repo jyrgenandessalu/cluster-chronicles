@@ -1,0 +1,21 @@
+﻿apiVersion: v1
+kind: Pod
+metadata:
+  name: cpu-stress-2
+spec:
+  containers:
+  - name: cpu-stress
+    image: busybox:1.37
+    command: ["sh", "-c"]
+    args:
+    - |
+      for i in $(seq 1 12); do
+        while true; do :; done &
+      done
+      sleep 3600
+    resources:
+      requests:
+        cpu: "1000m"
+      limits:
+        cpu: "3000m"
+  restartPolicy: Never
